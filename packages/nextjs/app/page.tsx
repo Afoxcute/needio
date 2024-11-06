@@ -4,8 +4,9 @@ import { useEffect, useState } from "react";
 import type { NextPage } from "next";
 import { toast } from "react-hot-toast";
 import { ArrowsRightLeftIcon, CurrencyDollarIcon, WalletIcon } from "@heroicons/react/24/outline";
-import { Address } from "~~/components/scaffold-eth";
+import { StellarAddress } from "~~/components/stellar/Address";
 import { stellarWallet } from "~~/utils/stellar/wallet";
+import freighterApi from "@stellar/freighter-api";
 
 const Home: NextPage = () => {
   const [stellarAddress, setStellarAddress] = useState<string>("");
@@ -18,6 +19,15 @@ const Home: NextPage = () => {
   const handleConnect = async () => {
     try {
       setIsLoading(true);
+      
+      const isConnected = await freighterApi.isConnected();
+      if (!isConnected) {
+        toast.error("Please install Freighter wallet extension first!");
+        window.open('https://www.freighter.app/', '_blank');
+        return;
+      }
+
+      // Connect wallet
       const { address } = await stellarWallet.connect();
       setStellarAddress(address);
       setIsConnected(true);
@@ -27,11 +37,24 @@ const Home: NextPage = () => {
       setBalance(balance);
 
       toast.success("Wallet connected successfully!");
-    } catch (error) {
+    } catch (error: any) {
       console.error("Failed to connect wallet:", error);
-      toast.error("Failed to connect wallet. Make sure you have Freighter installed!");
+      toast.error(error.message || "Failed to connect wallet. Please try again!");
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleDisconnect = async () => {
+    try {
+      await stellarWallet.disconnect();
+      setStellarAddress("");
+      setBalance("0");
+      setIsConnected(false);
+      toast.success("Wallet disconnected successfully!");
+    } catch (error: any) {
+      console.error("Failed to disconnect wallet:", error);
+      toast.error(error.message || "Failed to disconnect wallet. Please try again!");
     }
   };
 
@@ -53,9 +76,9 @@ const Home: NextPage = () => {
       // Clear form
       setRecipientAddress("");
       setAmount("");
-    } catch (error) {
+    } catch (error: any) {
       console.error("Failed to send payment:", error);
-      toast.error("Failed to send payment. Please try again.");
+      toast.error(error.message || "Failed to send payment. Please try again.");
     } finally {
       setIsLoading(false);
     }
@@ -66,18 +89,6 @@ const Home: NextPage = () => {
     toast.success("Address copied to clipboard!");
   };
 
-  // Update the connect wallet button to show loading state
-  const connectButton = (
-    <button
-      className={`btn btn-primary btn-lg gap-2 ${isLoading ? "loading" : ""}`}
-      onClick={handleConnect}
-      disabled={isLoading}
-    >
-      <WalletIcon className="h-6 w-6" />
-      {isLoading ? "Connecting..." : "Connect Wallet"}
-    </button>
-  );
-
   return (
     <div className="flex items-center flex-col flex-grow pt-10">
       <div className="px-5">
@@ -87,14 +98,23 @@ const Home: NextPage = () => {
         </h1>
 
         {!isConnected ? (
-          <div className="mt-8 flex justify-center">{connectButton}</div>
+          <div className="mt-8 flex justify-center">
+            <button
+              className={`btn btn-primary btn-lg gap-2 ${isLoading ? "loading" : ""}`}
+              onClick={handleConnect}
+              disabled={isLoading}
+            >
+              <WalletIcon className="h-6 w-6" />
+              {isLoading ? "Connecting..." : "Connect Wallet"}
+            </button>
+          </div>
         ) : (
           <div className="mt-8 flex flex-col items-center gap-4">
             <div className="stats shadow w-full max-w-md">
               <div className="stat">
                 <div className="stat-title">Wallet Address</div>
                 <div className="stat-value text-primary text-sm truncate">
-                  <Address address={stellarAddress} />
+                  <StellarAddress address={stellarAddress} />
                 </div>
               </div>
               <div className="stat">
@@ -102,6 +122,12 @@ const Home: NextPage = () => {
                 <div className="stat-value text-secondary">{balance} XLM</div>
               </div>
             </div>
+            <button
+              className="btn btn-secondary btn-sm"
+              onClick={handleDisconnect}
+            >
+              Disconnect Wallet
+            </button>
           </div>
         )}
       </div>
@@ -160,7 +186,7 @@ const Home: NextPage = () => {
                 <div className="mt-4">
                   <p className="text-sm mb-2">Your Stellar Address:</p>
                   <div className="bg-base-200 p-4 rounded-lg break-all">
-                    <Address address={stellarAddress} />
+                    <StellarAddress address={stellarAddress} />
                   </div>
                 </div>
                 <div className="card-actions justify-end mt-4">
