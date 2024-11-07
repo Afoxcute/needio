@@ -5,25 +5,29 @@ export class StellarWallet {
   private server: StellarSdk.Server;
 
   constructor() {
-    this.server = new StellarSdk.Server('https://horizon-testnet.stellar.org');
+    this.server = new StellarSdk.Server("https://horizon-testnet.stellar.org");
   }
 
-  async connect() {
+  async connect(providerName: string) {
     try {
       // First check if Freighter is connected
       const isConnected = await freighterApi.isConnected();
       if (!isConnected) {
-        throw new Error("Please install the Freighter wallet");
+        throw new Error("Please install Freighter wallet");
       }
-      // Request user permission to access public key
-      await freighterApi.isAllowed(); // Request permission from user
-      await freighterApi.getNetwork(); // Get current network
+
+      // Check if we have permission
+      const isAllowed = await freighterApi.isAllowed();
       
-      // Request access and get public key
+      if (!isAllowed) {
+        // Request permission if not already granted
+        await freighterApi.getPublicKey();
+      }
+
+      // Get the public key
       const publicKey = await freighterApi.getPublicKey();
-      
       if (!publicKey) {
-        throw new Error('Failed to get public key');
+        throw new Error("Failed to get public key");
       }
 
       return {
@@ -102,6 +106,54 @@ export class StellarWallet {
       return true;
     } catch (error) {
       console.error("Failed to disconnect wallet:", error);
+      throw error;
+    }
+  }
+
+  async addTrustline(assetCode: string, issuerAddress: string) {
+    try {
+      const publicKey = await freighterApi.getPublicKey();
+      if (!publicKey) {
+        throw new Error("Wallet not connected");
+      }
+
+      // Load the source account
+      const sourceAccount = await this.server.loadAccount(publicKey);
+
+      // Create the custom asset
+      const asset = new StellarSdk.Asset(assetCode, issuerAddress);
+
+      // Build the changeTrust transaction
+      const transaction = new StellarSdk.TransactionBuilder(sourceAccount, {
+        fee: StellarSdk.BASE_FEE,
+        networkPassphrase: StellarSdk.Networks.TESTNET,
+      })
+        .addOperation(
+          StellarSdk.Operation.changeTrust({
+            asset: asset,
+          }),
+        )
+        .setTimeout(180)
+        .build();
+
+      // Convert transaction to XDR
+      const xdr = transaction.toXDR();
+
+      // Sign the transaction using Freighter
+      const signedXDR = await freighterApi.signTransaction(xdr, {
+        networkPassphrase: StellarSdk.Networks.TESTNET,
+      });
+
+      // Submit the signed transaction
+      const tx = StellarSdk.TransactionBuilder.fromXDR(
+        signedXDR,
+        StellarSdk.Networks.TESTNET
+      );
+      const result = await this.server.submitTransaction(tx);
+      return result;
+
+    } catch (error) {
+      console.error("Failed to add trustline:", error);
       throw error;
     }
   }

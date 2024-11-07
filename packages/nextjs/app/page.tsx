@@ -7,6 +7,7 @@ import { ArrowsRightLeftIcon, CurrencyDollarIcon, WalletIcon } from "@heroicons/
 import { StellarAddress } from "~~/components/stellar/Address";
 import { stellarWallet } from "~~/utils/stellar/wallet";
 import freighterApi from "@stellar/freighter-api";
+import { AddTokenModal } from "~~/components/stellar/AddToken";
 
 const Home: NextPage = () => {
   const [stellarAddress, setStellarAddress] = useState<string>("");
@@ -15,27 +16,21 @@ const Home: NextPage = () => {
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [recipientAddress, setRecipientAddress] = useState<string>("");
   const [amount, setAmount] = useState<string>("");
+  const [isAddTokenModalOpen, setIsAddTokenModalOpen] = useState(false);
 
   const handleConnect = async () => {
     try {
       setIsLoading(true);
       
-      const isConnected = await freighterApi.isConnected();
-      if (!isConnected) {
-        toast.error("Please install Freighter wallet extension first!");
-        window.open('https://www.freighter.app/', '_blank');
-        return;
-      }
-
-      // Connect wallet
-      const { address } = await stellarWallet.connect();
+      // Connect wallet with provider name
+      const { address } = await stellarWallet.connect("freighter");
       setStellarAddress(address);
       setIsConnected(true);
-
+      
       // Get initial balance
       const balance = await stellarWallet.getBalance();
       setBalance(balance);
-
+      
       toast.success("Wallet connected successfully!");
     } catch (error: any) {
       console.error("Failed to connect wallet:", error);
@@ -122,12 +117,20 @@ const Home: NextPage = () => {
                 <div className="stat-value text-secondary">{balance} XLM</div>
               </div>
             </div>
-            <button
-              className="btn btn-secondary btn-sm"
-              onClick={handleDisconnect}
-            >
-              Disconnect Wallet
-            </button>
+            <div className="flex gap-2">
+              <button
+                className="btn btn-primary btn-sm"
+                onClick={() => setIsAddTokenModalOpen(true)}
+              >
+                Add Token
+              </button>
+              <button
+                className="btn btn-secondary btn-sm"
+                onClick={handleDisconnect}
+              >
+                Disconnect Wallet
+              </button>
+            </div>
           </div>
         )}
       </div>
@@ -199,6 +202,11 @@ const Home: NextPage = () => {
           </div>
         </div>
       )}
+
+      <AddTokenModal
+        isOpen={isAddTokenModalOpen}
+        onClose={() => setIsAddTokenModalOpen(false)}
+      />
     </div>
   );
 };
