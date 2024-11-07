@@ -1,5 +1,5 @@
 import { FC } from "react";
-import CopyToClipboard from "react-copy-to-clipboard";
+import { CopyToClipboard } from "react-copy-to-clipboard";
 import { toast } from "react-hot-toast";
 
 interface AddressProps {

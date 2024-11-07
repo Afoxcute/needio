@@ -1,0 +1,16 @@
+food_bank:
+  id: "FB001"
+  name: "Central Food Bank"
+
+storage:
+  ipfs_host: "/ip4/127.0.0.1/tcp/5001"
+  retention_days: 365
+
+ml:
+  input_shape: [10]
+  batch_size: 32
+  epochs: 10
+
+near:
+  network: "testnet"
+  contract_id: "rewards.testnet" 
